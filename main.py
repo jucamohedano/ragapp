@@ -14,6 +14,7 @@ from create_llama.backend.app.api.routers.chat import chat_router
 from src.routers.management.config import config_router
 from src.routers.management.files import files_router
 from src.routers.management.tools import tools_router
+from src.routers.management.vectordb_actions import vectordb_actions_router
 from src.routers.management.loader import loader_router
 from src.models.model_config import ModelConfig
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +35,7 @@ if environment == "dev":
 # Add chat router from create_llama/backend
 app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
 app.include_router(config_router, prefix="/api/management/config")
+app.include_router(vectordb_actions_router, prefix="/api/management/set-collection")
 app.include_router(tools_router, prefix="/api/management/tools", tags=["Agent"])
 app.include_router(files_router, prefix="/api/management/files", tags=["Knowledge"])
 app.include_router(loader_router, prefix="/api/management/loader", tags=["Knowledge"])
@@ -67,6 +69,8 @@ app.mount(
     "",
     StaticFiles(directory="static", check_dir=False, html=True),
 )
+app.mount("/api/data", StaticFiles(directory="data"), name="static")
+# app.mount("", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
     app_host = os.getenv("APP_HOST", "0.0.0.0")
