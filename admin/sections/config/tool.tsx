@@ -55,6 +55,36 @@ export const ToolConfig = () => {
           <div className="flex flex-col space-y-4">
             <FormField
               control={form.control}
+              name="requirementsCompliance"
+              render={({ field }) => (
+                <FormItem
+                  key="requirementsCompliance"
+                  className="flex flex-row items-center space-x-3 space-y-0"
+                >
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value.enabled ?? false}
+                      onCheckedChange={(checked) => {
+                        field.onChange({
+                          ...field.value,
+                          enabled: checked,
+                        });
+                        onSubmit("requirementsCompliance", form.getValues().requirementsCompliance);
+                      }}
+                    />
+                  </FormControl>
+                  <div>
+                    <FormLabel className="font-normal">
+                      {field.value.label}
+                    </FormLabel>
+                    <FormMessage />
+                    <FormDescription>Use this agent after populating Requirements and Description source to generate a compliance report</FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="duckduckgo"
               render={({ field }) => (
                 <FormItem

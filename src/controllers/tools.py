@@ -10,6 +10,7 @@ from src.models.tools import (
     WikipediaTool,
     OpenAPITool,
     E2BInterpreterTool,
+    RequirementsComplianceTool,
     Tools,
 )
 from src.constants import TOOL_CONFIG_FILE, ENV_FILE_PATH
@@ -37,6 +38,8 @@ class ToolsManager:
                 return OpenAPITool(**kwargs)
             case "E2BInterpreter" | "interpreter":
                 return E2BInterpreterTool(**kwargs)
+            case "RequirementsCompliance" | "requirementsCompliance":
+                return RequirementsComplianceTool(**kwargs)
             case _:
                 raise ValueError(f"Tool {tool_name} not found")
 

@@ -67,12 +67,21 @@ class E2BInterpreterTool(BaseModel):
     )
     enabled: bool = False
 
+class RequirementsComplianceTool(BaseModel):
+    config_id: ClassVar[str] = "requirementsCompliance"
+    name: Literal["requirementsCompliance"] = "requirementsCompliance"
+    tool_type: Literal["local"] = "local"
+    label: Literal["Requirements Compliance"] = "Requirements Compliance"
+    description: str = "Generate a compliance report based on the requirements and description source."
+    config: Dict = {}
+    enabled: bool = False
 
 class Tools(BaseModel):
     duckduckgo: DuckDuckGoTool = DuckDuckGoTool()
     wikipedia: WikipediaTool = WikipediaTool()
     openapi: OpenAPITool = OpenAPITool()
     interpreter: E2BInterpreterTool = E2BInterpreterTool()
+    requirementsCompliance: RequirementsComplianceTool = RequirementsComplianceTool()
 
     @classmethod
     def from_config(cls, config: Dict):
@@ -95,5 +104,9 @@ class Tools(BaseModel):
             interpreter=E2BInterpreterTool(
                 enabled=local_config.get(E2BInterpreterTool.config_id) is not None,
                 config=local_config.get(E2BInterpreterTool.config_id, {}),
+            ),
+            requirementsCompliance=RequirementsComplianceTool(  # Add the new tool here
+                enabled=local_config.get(RequirementsComplianceTool.config_id) is not None,
+                config=local_config.get(RequirementsComplianceTool.config_id, {}),
             ),
         )

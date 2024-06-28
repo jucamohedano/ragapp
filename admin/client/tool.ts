@@ -15,6 +15,11 @@ import {
   DEFAULT_WIKIPEDIA_TOOL_CONFIG,
   WikipediaToolConfig,
 } from "./tools/wikipedia";
+import {
+  DEFAULT_REQUIREMENTS_COMPLIANCE_TOOL_CONFIG,
+  requirementsComplianceToolConfig
+} from "./tools/requirementsCompliance";
+
 import { getBaseURL } from "./utils";
 
 export const ToolConfigSchema = z.object({
@@ -22,6 +27,7 @@ export const ToolConfigSchema = z.object({
   wikipedia: WikipediaToolConfig,
   openapi: OpenAPIToolConfig,
   interpreter: E2BInterpreterToolConfig,
+  requirementsCompliance: requirementsComplianceToolConfig
 });
 export type ToolConfigType = z.infer<typeof ToolConfigSchema>;
 
@@ -30,6 +36,7 @@ export const DEFAULT_TOOL_CONFIG = {
   wikipedia: DEFAULT_WIKIPEDIA_TOOL_CONFIG,
   openapi: DEFAULT_OPENAPI_TOOL_CONFIG,
   interpreter: DEFAULT_E2B_INTERPRETER_TOOL_CONFIG,
+  requirementsCompliance: DEFAULT_REQUIREMENTS_COMPLIANCE_TOOL_CONFIG,
 };
 
 export async function updateToolConfig(tool_name: string, data: any) {
