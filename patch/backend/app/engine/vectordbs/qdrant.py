@@ -6,7 +6,7 @@ def get_vector_store(collection_name):
     if not collection_name:
         collection_name = os.getenv("QDRANT_COLLECTION", "default")
     url = os.getenv("QDRANT_URL", "http://localhost:6333")
-    api_key = os.getenv("QDRANT_API_KEY")
+    api_key = os.getenv("QDRANT_API_KEY", "")
     if not collection_name or not url:
         raise ValueError(
             "Please set QDRANT_COLLECTION, QDRANT_URL"

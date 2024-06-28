@@ -31,13 +31,6 @@ def get_doc_store():
 
 
 def run_pipeline(docstore, vector_store, documents):
-    temp_document = []
-    for document in documents:
-        lines = document.text.splitlines()
-        for line in lines:
-            # Create a temporary document for each line
-            temp_document.append(type(document)(text=line))
-
     pipeline = IngestionPipeline(
         transformations=[
             SentenceSplitter(
@@ -52,8 +45,9 @@ def run_pipeline(docstore, vector_store, documents):
         vector_store=vector_store,
         )
     pipeline.disable_cache = True
-    nodes = pipeline.run(show_progress=True, documents=temp_document)
-            
+    # nodes = pipeline.run(show_progress=True, documents=temp_document)
+    nodes = pipeline.run(show_progress=True, documents=documents)
+
     return nodes
 
 
@@ -65,12 +59,12 @@ def persist_storage(docstore, vector_store):
     storage_context.persist(STORAGE_DIR)
 
 
-def generate_datasource():
+def generate_datasource(collection_path):
     init_settings()
     logger.info("Generate index for the provided data")
 
     # Get the stores and documents or create new ones
-    documents = get_documents()
+    documents = get_documents(collection_path)
     docstore = get_doc_store()
     vector_store = get_vector_store()
 
