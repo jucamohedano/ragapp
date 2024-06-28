@@ -7,9 +7,9 @@ from create_llama.backend.app.engine.generate import generate_datasource
 logger = logging.getLogger("uvicorn")
 
 
-def index_all():
+def index_all(collection_path):
     # Just call the generate_datasource from create_llama for now
-    generate_datasource()
+    generate_datasource(collection_path)
 
 
 def reset_index():

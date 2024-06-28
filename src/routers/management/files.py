@@ -74,18 +74,18 @@ async def remove_file(collection: str, file_name: str):
     )
 
 
-@r.delete("/{collection}/{file_name}")
-async def remove_file(collection: str, file_name: str):
-    """
-    Remove a file from a specific collection.
-    """
-    try:
-        FileHandler.remove_file(collection, file_name)
-    except HTTPException as e:
-        raise e  # Propagate the exception with the appropriate status code and message
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while trying to remove the file: {str(e)}"
-        )
-    return {"message": f"File '{file_name}' removed successfully from collection '{collection}'."}
+# @r.delete("/{collection}/{file_name}")
+# async def remove_file(collection: str, file_name: str):
+#     """
+#     Remove a file from a specific collection.
+#     """
+#     try:
+#         FileHandler.remove_file(collection, file_name)
+#     except HTTPException as e:
+#         raise e  # Propagate the exception with the appropriate status code and message
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"An error occurred while trying to remove the file: {str(e)}"
+#         )
+#     return {"message": f"File '{file_name}' removed successfully from collection '{collection}'."}
