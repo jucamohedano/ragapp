@@ -11,12 +11,6 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 
 const client = new QdrantClient({ host: "localhost", port: 6333 });
 
-// interface Collection {
-//   name: string;
-//   // Add other properties if needed
-// }
-
-
 // Function to delete the collection
 const deleteCollection = async (collectionName: string) => {
   try {
@@ -27,23 +21,6 @@ const deleteCollection = async (collectionName: string) => {
   }
 };
 
-const checkAndDeleteCollection = async (collectionName: string) => {
-  try {
-    // Check if the collection exists
-    const collectionExists = await client.collectionExists(collectionName);
-
-    if (collectionExists) {
-      // Delete the collection
-      await client.deleteCollection(collectionName);
-      console.log(`Collection '${collectionName}' deleted successfully.`);
-    } else {
-      console.warn(`Collection '${collectionName}' does not exist.`);
-    }
-  } catch (error) {
-    console.error(`Error checking/deleting collection '${collectionName}':`, error);
-    // Handle error as needed, e.g., set an error state
-  }
-};
 
 const fetchLatestPoint = async (
   setData: React.Dispatch<React.SetStateAction<EventData[]>>,
@@ -73,17 +50,14 @@ const fetchLatestPoint = async (
       const allPoints = response.points;
       const latestPoint = allPoints[allPoints.length - 1];
       const latestInfo = latestPoint.payload?.['Event Text'] as string | undefined;
+      const fileUrl = latestPoint.payload?.['fileUrl'] as string | undefined;
 
       if (latestInfo === "Results-LLM.xlsx") {
         console.log("Results-LLM.xlsx");
-        // Set the file URL for the download link
-        setFileUrl("/api/chat/download"); // Assuming your backend endpoint is at /download
-
         // Delete the 'events' collection
         await deleteCollection("events");
       } else {
         console.log("Not Results-LLM.xlsx");
-        setFileUrl(null); // Reset the file URL if condition is not met
       }
     
 
@@ -100,10 +74,15 @@ const fetchLatestPoint = async (
           console.log("Skipping duplicate point.");
           return prevData;
         }
+        
+
+        console.log("title: ", latestInfo);
+        console.log("fileUrl: ", fileUrl);
 
         const eventData: EventData = {
           title: latestInfo,
-          isCollapsed: true,
+          isCollapsed: false,
+          fileUrl: fileUrl, // Set the fileUrl in the EventData
         };
 
         return [...prevData, eventData];
@@ -122,7 +101,7 @@ const useQdrant = (shouldFetch: boolean) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout>(); // Ref for interval
-  const [fileUrl, setFileUrl] = useState<string | null>(null); // State to hold the file URL
+  const [fileUrl, setFileUrl] = useState<string | null>("/api/chat/download"); // State to hold the file URL
   
   
 useEffect(() => {
@@ -130,7 +109,7 @@ useEffect(() => {
     setIsLoading(true);
     intervalRef.current = setInterval(() => {
       fetchLatestPoint(setData, setError, setFileUrl);
-    }, 1000); // Fetch every 1 second (was 0.5, which is too frequent)
+    }, 500); // Fetch every 1 second (was 0.5, which is too frequent)
   } else {
     setIsLoading(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -144,68 +123,6 @@ useEffect(() => {
 return { data, isLoading, error, fileUrl };
 };
 
-const useWebSocket = (url: string, shouldConnect: boolean) => {
-  const [data, setData] = useState<EventData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-
-  useEffect(() => {
-    if (shouldConnect) {
-      const socket = new WebSocket(url);
-      socketRef.current = socket;
-
-      setIsLoading(true);
-
-      socket.onopen = () => {
-        console.log('WebSocket connection established');
-      };
-
-      socket.onmessage = (event) => {
-        try {
-          console.log("WebSocket message received:", event);
-          const eventData: EventData[] = JSON.parse(event.data);
-          console.log("Parsed WebSocket message data:", eventData);
-          setData(eventData);
-        } catch (parseError) {
-          console.error('Error parsing WebSocket message:', parseError);
-          setError('Error parsing WebSocket message');
-        }
-      };
-
-      socket.onerror = (errorEvent) => {
-        console.error('WebSocket error:', errorEvent);
-        setError('WebSocket connection error');
-        setIsLoading(false);
-      };
-
-      socket.onclose = () => {
-        console.log('WebSocket connection closed');
-        setIsLoading(false);
-      };
-    } else {
-      // Close the socket if shouldConnect becomes false
-      if (socketRef.current) {
-        console.log('Closing WebSocket connection due to shouldConnect being false');
-        socketRef.current.close();
-        socketRef.current = null;
-        setIsLoading(false);
-      }
-    }
-
-    // Clean-up function
-    return () => {
-      if (socketRef.current) {
-        console.log('Closing WebSocket connection during cleanup');
-        socketRef.current.close();
-        socketRef.current = null;
-        setIsLoading(false);
-      }
-    };
-  }, [url, shouldConnect]);
-
-  return { data, isLoading, error };
-};
 
 export default function ChatMessages(
   props: Pick<
@@ -237,9 +154,22 @@ export default function ChatMessages(
 
   const isPending = props.isLoading && !isLastMessageFromAssistant;
   
+  // State to store value from ChatEvents
+  const [fileDownloaded, setfileDownloaded] = useState<any>(null);
+
+  const handlefileDownloaded = (value: any) => {
+    setfileDownloaded(value);
+    // You can perform additional actions with the received value here
+  };
+
   const { data: eventData, isLoading: eventLoading, error, fileUrl } = useQdrant(
     isPending
   );
+
+  // Log values for debugging
+  // console.log('isPending:', isPending);
+  // console.log('fileDownloaded:', fileDownloaded);
+
 
   return (
     <div
@@ -263,14 +193,14 @@ export default function ChatMessages(
           </div>
         )} */}
       </div>
-      {isPending && (<ChatEvents data={eventData} isLoading={eventLoading} />)}
-      {fileUrl && (
-        <div className="mt-4">
-          <a href={fileUrl} download="Results-LLM.xlsx" className="text-blue-500 underline">
-            Download Results-LLM.xlsx
-          </a>
-        </div>
-      )}
+      {/* {isPending || (<ChatEvents data={eventData} isLoading={eventLoading} onValueChange={handlefileDownloaded}/>)} */}
+      {(isPending || !fileDownloaded) && (
+      <ChatEvents
+        data={eventData}
+        isLoading={eventLoading}
+        onValueChange={handlefileDownloaded}
+      />
+    )}
       {(showReload || showStop) && (
         <div className="flex justify-end py-4">
           <ChatActions

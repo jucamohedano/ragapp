@@ -40,10 +40,15 @@ export type SourceData = {
   nodes: SourceNode[];
 };
 
+// export type EventData = {
+//   title: string;
+//   isCollapsed: boolean;
+//   // downloadUrl?: string; // Optional field for download URL
+// };
 export type EventData = {
   title: string;
   isCollapsed: boolean;
-  // downloadUrl?: string; // Optional field for download URL
+  fileUrl?: string | null; // Add the fileUrl property
 };
 
 export type ToolData = {
