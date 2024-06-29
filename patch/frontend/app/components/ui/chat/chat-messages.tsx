@@ -10,91 +10,12 @@ import { EventData } from "./index";
 import { QdrantClient } from "@qdrant/js-client-rest";
 
 const client = new QdrantClient({ host: "localhost", port: 6333 });
-interface Collection {
-  name: string;
-  // Add other properties if needed
-}
-// const fetchLatestPoint = async (
-//   setData: React.Dispatch<React.SetStateAction<EventData[]>>,
-//   setError: React.Dispatch<React.SetStateAction<string | null>>
-// ) => {
-//   try {
-//     const collectionsResponse = await client.getCollections();
-//     const collectionExists = collectionsResponse.collections.some(
-//       (collection: Collection) => collection.name === "events"
-//     );
 
-//     if (!collectionExists) {
-//       console.warn("Collection 'events' does not exist.");
-//       return;
-//     }
+// interface Collection {
+//   name: string;
+//   // Add other properties if needed
+// }
 
-//     // const result = await client.count("events", {exact: true});
-//     // console.log("Qdrant count:", result);
-//     const response = await client.scroll("events", {
-//       limit: 1,
-//       with_payload: true,
-//       with_vector: false,
-//     });
-    
-//     console.log("Qdrant response:", response);
-
-
-//     if (response.points.length > 0) {
-//       // const info = response.points?.[response.points.length - 1]?.payload?.['Event Text'] ?? 'Default Event Text';
-//       // const info: string = response.points?.[response.points.length - 1]?.payload?.['Event Text'] as string ?? 'Default Event Text';
-//       const latestPoint = response.points[0];
-//       const latestInfo = latestPoint.payload?.['Event Text'] as string | undefined;
-//       const eventData: EventData = {
-//         title: latestInfo, // Example: Using id as title
-//         isCollapsed: true, // Example: Defaulting isCollapsed to true
-//       };
-      
-//       setData((prevData) => [...prevData, eventData]);
-//     } else {
-//       console.warn("Collection 'events' is empty.");
-//     }
-//   } catch (error) {
-//     console.error("Error fetching latest point from Qdrant:", error);
-//     setError("Error fetching latest point from Qdrant");
-//   }
-// };
-
-
-
-// if (response.points.length > 0) {
-//   const latestPoint = response.points[response.points.length - 1];
-//   const latestInfo = latestPoint.payload?.['Event Text'] as string | undefined;
-
-//   if (!latestInfo) {
-//     console.warn("Latest point does not contain 'Event Text'.");
-//     return;
-//   }
-
-//   // Check if the latest point is the same as the last one in state
-//   setData(prevData => {
-//     const lastEventData = prevData[prevData.length - 1];
-
-//     if (lastEventData && lastEventData.title === latestInfo) {
-//       console.log("Skipping duplicate point.");
-//       return prevData;
-//     }
-
-//     const eventData: EventData = {
-//       title: latestInfo,
-//       isCollapsed: true,
-//     };
-
-//     return [...prevData, eventData];
-//   });find_top_match
-//   } else {
-//     console.warn("Collection 'events' is empty.");
-//   }
-//   } catch (error) {
-//   console.error("Error fetching latest point from Qdrant:", error);
-//   setError("Error fetching latest point from Qdrant");
-//   }
-// };
 
 // Function to delete the collection
 const deleteCollection = async (collectionName: string) => {
@@ -204,24 +125,6 @@ const useQdrant = (shouldFetch: boolean) => {
   const [fileUrl, setFileUrl] = useState<string | null>(null); // State to hold the file URL
   
   
-//   useEffect(() => {
-//     if (shouldFetch) {
-//       setIsLoading(true);
-//       intervalRef.current = setInterval(() => {
-//         fetchLatestPoint(setData, setError);
-//       }, 0.5); // Fetch every 1 seconds
-//     } else {
-//       setIsLoading(false);
-//       if (intervalRef.current) clearInterval(intervalRef.current);
-//     }
-
-//     return () => {
-//       if (intervalRef.current) clearInterval(intervalRef.current);
-//     };
-//   }, [shouldFetch]);
-
-//   return { data, isLoading, error };
-// };
 useEffect(() => {
   if (shouldFetch) {
     setIsLoading(true);
@@ -334,15 +237,6 @@ export default function ChatMessages(
 
   const isPending = props.isLoading && !isLastMessageFromAssistant;
   
-  // const shouldConnectWebSocket = (props.reload && !props.isLoading && isLastMessageFromAssistant) || false;
-  // const { data: eventData, isLoading: eventLoading, error } = useWebSocket(
-  //   "ws://localhost:8000/api/chat/ws/events",
-  //   isPending
-  // );
-
-  // const { data: eventData, isLoading: eventLoading, error } = useQdrant(
-  //   isPending
-  // );
   const { data: eventData, isLoading: eventLoading, error, fileUrl } = useQdrant(
     isPending
   );
