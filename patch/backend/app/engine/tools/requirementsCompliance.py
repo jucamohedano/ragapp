@@ -10,7 +10,7 @@ from llama_index.core.query_engine import CustomQueryEngine
 from llama_index.llms.ollama import Ollama
 from llama_index.core import PromptTemplate
 
-def insert_event_record(qdrant_client, collection_name, event_text, index):
+def insert_event_record(qdrant_client, collection_name, event_text, index, url=None):
     event_uuid = str(uuid.uuid4())
     timestamp = int(time.time())
     # event_text = event_text_template.format(index=index+1)
@@ -24,7 +24,8 @@ def insert_event_record(qdrant_client, collection_name, event_text, index):
                     "UUID": event_uuid,
                     "Request ID": str(uuid.uuid4()),
                     "Event Text": event_text,
-                    "Timestamp": timestamp
+                    "Timestamp": timestamp,
+                    "fileUrl": url,
                 },
                 vector=[0.9, 0.1, 0.1, 0.1],
             ),
@@ -33,7 +34,7 @@ def insert_event_record(qdrant_client, collection_name, event_text, index):
 
 
 class ComplianceQueryEngine(CustomQueryEngine):
-    """RAG String Query Engine."""
+    """Compliance Query Engine."""
 
     # retriever: BaseRetriever
     # response_synthesizer: BaseSynthesizer
@@ -48,7 +49,7 @@ class ComplianceQueryEngine(CustomQueryEngine):
         # Check if the "events" collection exists and delete it if it does
         if qdrant_client.collection_exists(collection_name="events"):
             qdrant_client.delete_collection(collection_name="events")
-            raise Exception("Collection already exists")
+
         # Create the "events" collection
         qdrant_client.create_collection(
                                 collection_name="events",
@@ -91,16 +92,17 @@ class ComplianceQueryEngine(CustomQueryEngine):
             
             # Prepare results list
             results = []
-            prompts = []
             responses = []
             llm_results = []
             llm_reasons = []
             results_df = pd.DataFrame()
+            last_index = None
 
             # Iterating over req_records
             for index, req_record in enumerate(req_records):
                 req_event_text = f"Retrieving Context for Requirement {index+1}..."
-                insert_event_record(qdrant_client, "events", req_event_text, index)
+                print(req_event_text)
+                insert_event_record(qdrant_client, "events", req_event_text, index*3)
                 time.sleep(1)
                 
                 match = find_top_match(req_record.vector)
@@ -118,25 +120,23 @@ class ComplianceQueryEngine(CustomQueryEngine):
                         'Similarity Score': match.score
                     }
 
-                    results.append(result_row)
+                    # results.append(result_row)
                     # append new results to results_df
-                    new_df = pd.DataFrame.from_records(results)
+                    # new_df = pd.DataFrame.from_records(results)
                     # concatenate new_df with the initially empty results_df
-                    results_df = pd.concat([results_df, new_df], ignore_index=True)
+                    # results_df = pd.concat([results_df, new_df], ignore_index=True)
                     
                     time.sleep(1.0)
                     event_handler.emit(ExtendedCBEventType.REASONING_START, {"reasoning_start":"started reasoning over req and desc"})
                     reasoning_event_text = f"Reasoning with Context for Requirement {index+1}..."
-                    insert_event_record(qdrant_client, "events", reasoning_event_text, index+1)
+                    print(reasoning_event_text)
+                    insert_event_record(qdrant_client, "events", reasoning_event_text, (index*3)+1)
                     
-                    print(self.qa_prompt.format(
-                                    requirement_text=result_row['Requirement Text'], 
-                                    description_text=result_row['Description Text']))
                     response = self.llm.complete(
                                 self.qa_prompt.format(
                                     requirement_text=result_row['Requirement Text'], 
                                     description_text=result_row['Description Text']),
-                                formatted=True
+                                # formatted=True
                             )
                     
 
@@ -168,6 +168,7 @@ class ComplianceQueryEngine(CustomQueryEngine):
                         time.sleep(1.0)
 
                     except (TypeError, json.JSONDecodeError) as e:
+                        qdrant_client.delete_collection(collection_name="events")
                         print(f"Error parsing JSON response: {e}")
                         print()
                         print(100*"&")
@@ -178,12 +179,14 @@ class ComplianceQueryEngine(CustomQueryEngine):
                     try:
                         response_json = json.loads(response.json())
                     except json.JSONDecodeError as e:
+                        qdrant_client.delete_collection(collection_name="events")
                         print(f"Error decoding initial JSON response: {e}")
                         response_json = {}
 
 
 
                     except (TypeError, ValueError, json.JSONDecodeError) as e:
+                        qdrant_client.delete_collection(collection_name="events")
                         print(f"Error parsing JSON response: {e}")
                         print(100*"&")
                         print(response_json)
@@ -194,11 +197,30 @@ class ComplianceQueryEngine(CustomQueryEngine):
                     llm_results.append(result)
                     llm_reasons.append(reason)
 
-                    # Update the DataFrame and write to the Excel file incrementally
-                    results_df.at[index, 'Result'] = result
-                    results_df.at[index, 'Reason'] = reason
+                    # Update the DataFrame
+                    persist_event_text = f"Persisting result to spreadsheet..."
+                    print(persist_event_text)
+                    insert_event_record(qdrant_client, "events", persist_event_text, (index*3)+2)
+                    time.sleep(1.0)
+                    last_index = (index*3)+2
+
+                    print()
+                    print()
+                    print(f"full response:\n {response}\n")
+                    print(f"result: {result}")
+                    print(f"reason: {reason}")
+                    print(f"index: {index}")
+                    print()
+                    print()
+
+
+                    result_row['Result'] = result
+                    result_row['Reason'] = reason
+                    results.append(result_row)
+            results_df = pd.DataFrame.from_records(results)
 
         except Exception as e:
+            qdrant_client.delete_collection(collection_name="events")
             return f"Error generating report: {e}"
             
         save_dir = "reports/Results-LLM.xlsx"
@@ -214,8 +236,9 @@ class ComplianceQueryEngine(CustomQueryEngine):
         insert_event_record(qdrant_client=qdrant_client, 
                             collection_name="events", 
                             event_text="Results-LLM.xlsx", 
-                            index=len(req_records)*2)
-        return f"Report between requirements and descriptions was generated and saved to Excel file in {save_dir}."
+                            index=last_index+1,
+                            url='/api/chat/download')
+        return f"Report to the user that requirements compliance report is ready and nothing else."
     
 def get_compliance_tool():
     from llama_index.core.tools.query_engine import QueryEngineTool
@@ -243,10 +266,16 @@ def get_compliance_tool():
     )
 
     compliance_query_engine = ComplianceQueryEngine(llm=Settings.llm, qa_prompt=qa_prompt)
-    generate_report_tool = QueryEngineTool.from_defaults(
+    compliance_check_tool = QueryEngineTool.from_defaults(
         query_engine=compliance_query_engine,
-        name="generate_report",
+        name="compliance_check",
         description= "Tool Name: Compliance Check\n Trigger Prompt: Perform Compliance Check\n Tool Description: Performs compliance check between requirements and capabilities in order to produce a report.",
+        # return_direct=True
     )
 
-    return generate_report_tool
+    schema = compliance_check_tool.metadata.get_parameters_dict()
+    print('\nSchema:\n')
+    print(schema)
+    print('\n')
+
+    return compliance_check_tool
