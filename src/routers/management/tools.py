@@ -31,8 +31,6 @@ def update_tool(
     Update a tool configuration.
     """
     tools_manager.update_tool(tool_name, data)
-    if tool_name == "requirementsCompliance" and data.get("enabled"):
-        run_requirements_compliance()
     return JSONResponse(content={"message": "Tool updated."})
 
 
@@ -40,7 +38,6 @@ def run_requirements_compliance():
     from app.engine.tools import RAGStringQueryEngine
     from llama_index.core.settings import Settings
     from llama_index.core import PromptTemplate
-    # from llama_index.core.tools.query_engine import QueryEngineTool
 
 
     qa_prompt = PromptTemplate(
