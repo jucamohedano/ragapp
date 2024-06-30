@@ -21,7 +21,6 @@ class FileHandler:
         """
         # Adjust the file path to include the collection
         file_path = f"data/{collection}/{file_name}"
-        
         try:
             os.remove(file_path)
         except FileNotFoundError:
@@ -29,8 +28,10 @@ class FileHandler:
                 status_code=404,
                 detail=f"File '{file_name}' not found in collection '{collection}'."
             )
-        # Re-index the data
-        index_all(file_path)
+        
+        # Re-index the data if the path is not empty
+        if len(os.listdir(f"data/{collection}")) > 0:
+            index_all(file_path)
 
     @classmethod
     def get_current_files(cls, collection: str) -> List[File]:
