@@ -53,9 +53,9 @@ services:
               count: 1
               capabilities: [gpu]
 
-  ragapp:
+  ragapp-ext:
     build: .
-    image: ragapp/ragapp:latest
+    image: ragapp-ext/ragapp-ext:latest
     user: root
     ports:
       - "8000:8000"

@@ -1,3 +1,4 @@
+import os
 import json
 import uuid
 import time
@@ -34,7 +35,7 @@ def insert_event_record(qdrant_client, collection_name, event_text, index, url=N
 
 
 class ComplianceQueryEngine(CustomQueryEngine):
-    """Compliance Query Engine."""
+    """Compliance Check Query Engine."""
 
     # retriever: BaseRetriever
     # response_synthesizer: BaseSynthesizer
@@ -44,7 +45,8 @@ class ComplianceQueryEngine(CustomQueryEngine):
 
     def custom_query(self, query_str: str):
         event_handler = EventCallbackHandler()
-        qdrant_client = QdrantClient(host='localhost', port=6333)  # Update with actual host and port if different
+        print('QDRANT_URL: ', os.getenv('QDRANT_URL'))
+        qdrant_client = QdrantClient(url=os.getenv('QDRANT_URL'))
 
         # Check if the "events" collection exists and delete it if it does
         if qdrant_client.collection_exists(collection_name="events"):
@@ -62,10 +64,12 @@ class ComplianceQueryEngine(CustomQueryEngine):
         try:
             # Check if the "requirement" collection exists
             if not qdrant_client.collection_exists(collection_name="requirement"):
-                raise ValueError("Collection 'requirement' does not exist in the database.")
+                return "Report to the user that the collection 'requirement' does not exist in the database and we can't perform the compliance check."
+                # raise ValueError("Collection 'requirement' does not exist in the database.")
             # Check if the "description" collection exists
             if not qdrant_client.collection_exists(collection_name="description"):
-                raise ValueError("Collection 'description' does not exist in the database.")
+                return "Report to the user that the collection 'description' does not exist in the database and we can't perform the compliance check."
+                # raise ValueError("Collection 'description' does not exist in the database.")
             
             req_records = qdrant_client.scroll(collection_name="requirement", 
                                                 limit=1000, # Adjust limit as needed
@@ -73,7 +77,8 @@ class ComplianceQueryEngine(CustomQueryEngine):
                                                 with_payload=True)[0]
             # Check if the "requirement" collection is empty
             if not req_records:
-                raise ValueError("Collection 'requirement' is empty.")
+                return "Report to the user that the collection 'requirement' in the database is empty and that they need to upload data to the colleciton requirement."
+                # raise ValueError("Collection 'requirement' is empty.")
             
             def find_top_match(requirement_vector):
                 event_handler.emit(ExtendedCBEventType.TOP_MATCH_START, {"top_match_start":"started the search"})
@@ -119,12 +124,6 @@ class ComplianceQueryEngine(CustomQueryEngine):
                         'Description Text': match_content.get('text'),
                         'Similarity Score': match.score
                     }
-
-                    # results.append(result_row)
-                    # append new results to results_df
-                    # new_df = pd.DataFrame.from_records(results)
-                    # concatenate new_df with the initially empty results_df
-                    # results_df = pd.concat([results_df, new_df], ignore_index=True)
                     
                     time.sleep(1.0)
                     event_handler.emit(ExtendedCBEventType.REASONING_START, {"reasoning_start":"started reasoning over req and desc"})
@@ -175,14 +174,9 @@ class ComplianceQueryEngine(CustomQueryEngine):
                         print(response_json)
                         print(100*"&")
                         print()
-                        return f"Error generating report: {e}"
+                        return "Report to the user that there was an error in the JSON structure produced by the LLM to generate the compliance report."
                     try:
                         response_json = json.loads(response.json())
-                    except json.JSONDecodeError as e:
-                        qdrant_client.delete_collection(collection_name="events")
-                        print(f"Error decoding initial JSON response: {e}")
-                        response_json = {}
-
 
 
                     except (TypeError, ValueError, json.JSONDecodeError) as e:
@@ -191,7 +185,8 @@ class ComplianceQueryEngine(CustomQueryEngine):
                         print(100*"&")
                         print(response_json)
                         print(100*"&")
-                        return f"Error generating report: {e}"
+                        return "Report to the user that there was an error in the JSON structure produced by the LLM to generate the compliance report."
+                    
                     event_handler.emit(ExtendedCBEventType.REASONING_END, {"reasoning_end":"finished reasoning over req and desc"})
 
                     llm_results.append(result)
@@ -221,7 +216,7 @@ class ComplianceQueryEngine(CustomQueryEngine):
 
         except Exception as e:
             qdrant_client.delete_collection(collection_name="events")
-            return f"Error generating report: {e}"
+            return "Report to the user that there was an error while generating the compliance report."
             
         save_dir = "reports/Results-LLM.xlsx"
         results_df.to_excel(save_dir, index=False, columns=[
@@ -273,9 +268,9 @@ def get_compliance_tool():
         # return_direct=True
     )
 
-    schema = compliance_check_tool.metadata.get_parameters_dict()
-    print('\nSchema:\n')
-    print(schema)
-    print('\n')
+    # schema = compliance_check_tool.metadata.get_parameters_dict()
+    # print('\nSchema:\n')
+    # print(schema)
+    # print('\n')
 
     return compliance_check_tool
