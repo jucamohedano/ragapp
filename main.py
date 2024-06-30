@@ -69,7 +69,8 @@ app.mount(
     "",
     StaticFiles(directory="static", check_dir=False, html=True),
 )
-app.mount("/api/data", StaticFiles(directory="data"), name="static")
+
+# app.mount("/api/data", StaticFiles(directory="data"), name="static")
 # app.mount("", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
