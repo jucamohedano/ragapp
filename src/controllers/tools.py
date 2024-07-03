@@ -20,6 +20,7 @@ from src.models.tools import (
     WikipediaTool,
     OpenAPITool,
     ImageGeneratorTool,
+    RequirementsComplianceTool,
     Tools,
 )
 from src.controllers.system_prompt import SystemPromptManager

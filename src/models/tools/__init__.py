@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from .duckduckgo import DuckDuckGoTool
 from .wikipedia import WikipediaTool
 from .openapi import OpenAPITool, OpenAPIToolConfig
+from .requirements_compliance import RequirementsComplianceTool
 from .interpreter import E2BInterpreterTool, E2BInterpreterToolConfig
 from .image_generator import ImageGeneratorTool, ImageGeneratorToolConfig
 
@@ -14,6 +15,7 @@ class Tools(BaseModel):
     openapi: OpenAPITool = OpenAPITool()
     interpreter: E2BInterpreterTool = E2BInterpreterTool()
     image_generator: ImageGeneratorTool = ImageGeneratorTool()
+    requirements_compliance: RequirementsComplianceTool = RequirementsComplianceTool()
 
     @classmethod
     def from_config(cls, config: Dict):
@@ -40,5 +42,9 @@ class Tools(BaseModel):
             image_generator=ImageGeneratorTool(
                 enabled=local_config.get(ImageGeneratorTool.config_id) is not None,
                 config=local_config.get(ImageGeneratorTool.config_id, {}),
+            ),
+            requirementsCompliance=RequirementsComplianceTool(  # Add the new tool here
+                enabled=local_config.get(RequirementsComplianceTool.config_id) is not None,
+                config=local_config.get(RequirementsComplianceTool.config_id, {}),
             ),
         )
