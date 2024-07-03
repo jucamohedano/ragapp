@@ -11,6 +11,7 @@ from src.models.tools import (
     WikipediaTool,
     OpenAPITool,
     E2BInterpreterTool,
+    RequirementsComplianceTool,
     Tools,
 )
 from src.constants import TOOL_CONFIG_FILE, ENV_FILE_PATH, TOOL_CONFIG_FILE
@@ -46,6 +47,8 @@ class ToolsManager:
                 return E2BInterpreterTool(**kwargs)
             case "ImageGenerator" | "image_generator":
                 return ImageGeneratorTool(**kwargs)
+            case "RequirementsCompliance" | "requirementsCompliance":
+                return RequirementsComplianceTool(**kwargs)
             case _:
                 raise ValueError(f"Tool {tool_name} not found")
 

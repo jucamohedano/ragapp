@@ -32,3 +32,20 @@ def update_tool(
     """
     tools_manager.update_tool(tool_name, data)
     return JSONResponse(content={"message": "Tool updated."})
+
+
+def run_requirements_compliance():
+    from app.engine.tools import RAGStringQueryEngine
+    from llama_index.core.settings import Settings
+    from llama_index.core import PromptTemplate
+
+
+    qa_prompt = PromptTemplate(
+        "Requirement: {requirement_text}\n"
+        "Capability: {description_text}\n"
+        "Respond in JSON of the form:\n"
+        '{{\n  "Result": {{\n    "Result": "Yes"\n  }},\n  "Reason": {{\n    "Reason": "n77 bands are supported by this capability."\n  }}\n}}'
+    )
+    similarity_query_engine = RAGStringQueryEngine(llm=Settings.llm, qa_prompt=qa_prompt)
+    similarity_query_engine.query("Generate a report based on the requirements and descriptions collections in Qdrant")
+    

@@ -1,8 +1,11 @@
 import os
 from llama_index.core.settings import Settings
 from llama_index.core.agent import AgentRunner
-from app.engine.tools import ToolFactory
+from app.engine.tools import ToolFactory 
 from app.engine.index import get_index
+from functools import partial
+from llama_index.core.tools.function_tool import FunctionTool
+from llama_index.core import PromptTemplate
 
 
 def get_chat_engine():
@@ -29,10 +32,29 @@ def get_chat_engine():
         from llama_index.core.tools.query_engine import QueryEngineTool
 
         # Add the query engine tool to the list of tools
-        query_engine_tool = QueryEngineTool.from_defaults(
-            query_engine=index.as_query_engine(similarity_top_k=top_k)
-        )
-        tools.append(query_engine_tool)
+        use_context_tool = True
+        for tool in tools:
+            if tool.metadata.name == 'compliance_check':
+                use_context_tool = False
+                print('Using the GENERATE REPORT TOOL')
+                return AgentRunner.from_llm(
+                        llm=Settings.llm,
+                        tools=tools,
+                        system_prompt=system_prompt,
+                        verbose=True,  # Show agent logs to console
+                        default_tool_choice="compliance_check",
+                        max_iterations=1,
+                    )
+
+        
+        if use_context_tool:
+            print('Using the CONTEXT TOOL')
+            query_engine_tool = QueryEngineTool.from_defaults(
+                query_engine=index.as_query_engine(similarity_top_k=top_k)
+            )
+
+            tools.append(query_engine_tool)
+
         return AgentRunner.from_llm(
             llm=Settings.llm,
             tools=tools,

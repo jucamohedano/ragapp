@@ -44,7 +44,7 @@ COPY --from=build /app/create_llama/backend /app/create_llama/backend
 COPY . .
 
 # Create an empty data folder
-RUN mkdir -p data
+RUN mkdir -p data reports
 
 EXPOSE 8000
 
