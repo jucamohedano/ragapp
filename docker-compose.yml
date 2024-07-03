@@ -5,7 +5,7 @@ services:
       - 6333:6333
       - 6334:6334
     networks:
-      - ragapp-network
+      - ragapp-ext-network
 
   ollama:
     image: ollama/ollama:latest
@@ -14,7 +14,7 @@ services:
     volumes:
       - ./ollama:/root/.ollama
     networks:
-      - ragapp-network
+      - ragapp-ext-network
     deploy:
       resources:
         reservations:
@@ -27,7 +27,7 @@ services:
     image: curlimages/curl:latest
     user: root
     networks:
-      - ragapp-network
+      - ragapp-ext-network
     volumes:
       - ./scripts:/ragapp
     environment:
@@ -55,7 +55,7 @@ services:
 
   ragapp-ext:
     build: .
-    image: ragapp-ext/ragapp-ext:latest
+    # image: ragapp-ext/ragapp-ext:latest
     user: root
     ports:
       - "8000:8000"
@@ -75,7 +75,7 @@ services:
     depends_on:
       - setup
     networks:
-      - ragapp-network
+      - ragapp-ext-network
     deploy:
       resources:
         reservations:
@@ -85,5 +85,5 @@ services:
               capabilities: [gpu]
   
 networks:
-  ragapp-network:
+  ragapp-ext-network:
 
