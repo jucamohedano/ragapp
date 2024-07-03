@@ -9,7 +9,7 @@ export const requirementsComplianceToolConfig = z.object({
 });
 export type requirementsComplianceToolConfigType = z.infer<typeof requirementsComplianceToolConfig>;
 export const DEFAULT_REQUIREMENTS_COMPLIANCE_TOOL_CONFIG = {
-  label: "requirementsCompliance",
+  label: "Requirements Compliance",
   description: "",
   config: {},
   enabled: false,
