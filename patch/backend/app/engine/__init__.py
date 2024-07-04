@@ -36,16 +36,7 @@ def get_chat_engine():
         for tool in tools:
             if tool.metadata.name == 'compliance_check':
                 use_context_tool = False
-                print('Using the GENERATE REPORT TOOL')
-                return AgentRunner.from_llm(
-                        llm=Settings.llm,
-                        tools=tools,
-                        system_prompt=system_prompt,
-                        verbose=True,  # Show agent logs to console
-                        default_tool_choice="compliance_check",
-                        max_iterations=1,
-                    )
-
+                
         
         if use_context_tool:
             print('Using the CONTEXT TOOL')
