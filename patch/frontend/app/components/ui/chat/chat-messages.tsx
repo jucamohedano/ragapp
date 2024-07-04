@@ -25,7 +25,8 @@ const deleteCollection = async (collectionName: string) => {
 const fetchLatestPoint = async (
   setData: React.Dispatch<React.SetStateAction<EventData[]>>,
   setError: React.Dispatch<React.SetStateAction<string | null>>,
-  setFileUrl: React.Dispatch<React.SetStateAction<string | null>>
+  setFileUrl: React.Dispatch<React.SetStateAction<string | null>>,
+  cleanup: () => void
 ) => {
   try {
     const collectionsResponse = await client.getCollections();
@@ -56,6 +57,8 @@ const fetchLatestPoint = async (
         console.log("Results-LLM.xlsx");
         // Delete the 'events' collection
         await deleteCollection("events");
+        // Call cleanup function to clear EventData
+        cleanup();
       } else {
         console.log("Not Results-LLM.xlsx");
       }
@@ -74,10 +77,6 @@ const fetchLatestPoint = async (
           console.log("Skipping duplicate point.");
           return prevData;
         }
-        
-
-        console.log("title: ", latestInfo);
-        console.log("fileUrl: ", fileUrl);
 
         const eventData: EventData = {
           title: latestInfo,
@@ -103,24 +102,28 @@ const useQdrant = (shouldFetch: boolean) => {
   const intervalRef = useRef<NodeJS.Timeout>(); // Ref for interval
   const [fileUrl, setFileUrl] = useState<string | null>("/api/chat/download"); // State to hold the file URL
   
-  
-useEffect(() => {
-  if (shouldFetch) {
-    setIsLoading(true);
-    intervalRef.current = setInterval(() => {
-      fetchLatestPoint(setData, setError, setFileUrl);
-    }, 500); // Fetch every 1 second (was 0.5, which is too frequent)
-  } else {
-    setIsLoading(false);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  }
-
-  return () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+  // Cleanup function to clear EventData
+  const cleanupEventData = () => {
+    setData([]);
   };
-}, [shouldFetch]);
+  
+  useEffect(() => {
+    if (shouldFetch) {
+      setIsLoading(true);
+      intervalRef.current = setInterval(() => {
+        fetchLatestPoint(setData, setError, setFileUrl, cleanupEventData);
+      }, 100); // Fetch every 1 second (was 0.5, which is too frequent)
+    } else {
+      setIsLoading(false);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
 
-return { data, isLoading, error, fileUrl };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [shouldFetch]);
+
+  return { data, isLoading, error, fileUrl, cleanupEventData };
 };
 
 
@@ -134,6 +137,7 @@ export default function ChatMessages(
   const scrollableChatContainerRef = useRef<HTMLDivElement>(null);
   const messageLength = props.messages.length;
   const lastMessage = props.messages[messageLength - 1];
+  // const { toast } = useToast();
 
   const scrollToBottom = () => {
     if (scrollableChatContainerRef.current) {
@@ -159,16 +163,14 @@ export default function ChatMessages(
 
   const handlefileDownloaded = (value: any) => {
     setfileDownloaded(value);
+    // Call cleanup function to clear EventData
+    cleanupEventData();
     // You can perform additional actions with the received value here
   };
 
-  const { data: eventData, isLoading: eventLoading, error, fileUrl } = useQdrant(
+  const { data: eventData, isLoading: eventLoading, error, fileUrl, cleanupEventData } = useQdrant(
     isPending
   );
-
-  // Log values for debugging
-  // console.log('isPending:', isPending);
-  // console.log('fileDownloaded:', fileDownloaded);
 
 
   return (
@@ -187,13 +189,7 @@ export default function ChatMessages(
             />
           );
         })}
-        {/* {isPending && (
-          <div className="flex justify-center items-center pt-10">
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </div>
-        )} */}
       </div>
-      {/* {isPending || (<ChatEvents data={eventData} isLoading={eventLoading} onValueChange={handlefileDownloaded}/>)} */}
       {(isPending || !fileDownloaded) && (
       <ChatEvents
         data={eventData}
