@@ -15,7 +15,7 @@ class Tools(BaseModel):
     openapi: OpenAPITool = OpenAPITool()
     interpreter: E2BInterpreterTool = E2BInterpreterTool()
     image_generator: ImageGeneratorTool = ImageGeneratorTool()
-    requirements_compliance: RequirementsComplianceTool = RequirementsComplianceTool()
+    requirementsCompliance: RequirementsComplianceTool = RequirementsComplianceTool()
 
     @classmethod
     def from_config(cls, config: Dict):
@@ -43,7 +43,7 @@ class Tools(BaseModel):
                 enabled=local_config.get(ImageGeneratorTool.config_id) is not None,
                 config=local_config.get(ImageGeneratorTool.config_id, {}),
             ),
-            requirementsCompliance=RequirementsComplianceTool(  # Add the new tool here
+            requirementsCompliance=RequirementsComplianceTool(
                 enabled=local_config.get(RequirementsComplianceTool.config_id) is not None,
                 config=local_config.get(RequirementsComplianceTool.config_id, {}),
             ),
