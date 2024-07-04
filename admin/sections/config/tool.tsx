@@ -39,12 +39,47 @@ const checkCollectionExists = async (collectionName: string) => {
   }
 };
 
-const checkRequirementsComplianceAndCollections = async () => {
+const isCollectionEmpty = async (collectionName: string) => {
+  const client = new QdrantClient({ host: "localhost", port: 6333 });
+
+  try {
+    const response = await client.scroll(collectionName, {
+      limit: 1000, // Fetch up to 1000 points (adjust as needed)
+      with_payload: false,
+      with_vector: false,
+    });
+    if (response.points.length > 0) {
+      return false; // collection is not empty
+    }
+    else {
+      return true; // collection is empty
+    }
+  } catch (error) {
+    console.error(`Error checking collection '${collectionName}':`, error);
+    throw error;
+  }
+};
+
+const verifyCollectionsStatus = async () => {
   try {
     const collectionsExist = await Promise.all([
       checkCollectionExists("requirement"),
       checkCollectionExists("description"),
     ]);
+
+    if (collectionsExist[0] && collectionsExist[1]) {
+      const checkDataCollections = await Promise.all([
+        isCollectionEmpty("requirement"),
+        isCollectionEmpty("description"),
+      ]);
+      return {
+        requirementCollectionExists: collectionsExist[0],
+        descriptionCollectionExists: collectionsExist[1],
+        requirementCollectionIsEmpty: checkDataCollections[0], // collection "requirement"
+        descriptionCollectionIsEmpty: checkDataCollections[1], // collection "description"
+      };
+    }
+
     return {
       requirementCollectionExists: collectionsExist[0],
       descriptionCollectionExists: collectionsExist[1],
@@ -67,7 +102,7 @@ export const ToolConfig = () => {
   const onSubmit = async (tool_name: string, data: any) => {
     if (tool_name === "requirementsCompliance" && data.enabled) {
       try {
-        const complianceResults = await checkRequirementsComplianceAndCollections();
+        const complianceResults = await verifyCollectionsStatus();
 
         if (
           complianceResults &&
@@ -75,17 +110,33 @@ export const ToolConfig = () => {
             !complianceResults.descriptionCollectionExists)
         ) {
           data.enabled = false;
-          form.reset(data)
+          form.reset(data);
           toast({
             title: "Compliance Error",
             description:
               "The requirement and description collections must exist and be populated before using the Requirement Compliance agent.",
             className: "text-red-500",
+            duration:10000,
+          });
+        }
+        else if ((complianceResults && 
+                  complianceResults.requirementCollectionExists && 
+                  complianceResults.descriptionCollectionExists &&
+                (complianceResults.requirementCollectionIsEmpty ||
+                 complianceResults.descriptionCollectionIsEmpty))) {
+                  data.enabled = false;
+          form.reset(data);
+          toast({
+            title: "Compliance Error",
+            description:
+              "The collecitons must be populated before using the Requirement Compliance agent.",
+            className: "text-red-500",
+            duration:10000,
           });
         }
       } catch (error) {
         data.enabled = false;
-        form.reset(data)
+        form.reset(data);
         console.error("Compliance check failed:", error);
         toast({
           title: "Error",
