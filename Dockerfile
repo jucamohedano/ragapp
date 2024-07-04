@@ -35,7 +35,7 @@ RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python
 # and remove the frontend folder
 COPY poetry.lock pyproject.toml ./
 # Install dependencies
-RUN poetry install --no-root --no-cache --only main
+RUN poetry add openpyxl@3.1.4 && poetry install --no-root --no-cache --only main
 
 # Copy static files from the build stage 
 COPY --from=build /app/create_llama/frontend/out /app/static

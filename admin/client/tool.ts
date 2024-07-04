@@ -4,6 +4,10 @@ import {
   DuckDuckGoToolConfig,
 } from "./tools/duckduckgo";
 import {
+  DEFAULT_IMAGE_GENERATOR_TOOL_CONFIG,
+  ImageGeneratorToolConfig,
+} from "./tools/image_generator";
+import {
   DEFAULT_E2B_INTERPRETER_TOOL_CONFIG,
   E2BInterpreterToolConfig,
 } from "./tools/interpreter";
@@ -27,6 +31,7 @@ export const ToolConfigSchema = z.object({
   wikipedia: WikipediaToolConfig,
   openapi: OpenAPIToolConfig,
   interpreter: E2BInterpreterToolConfig,
+  image_generator: ImageGeneratorToolConfig,
   requirementsCompliance: requirementsComplianceToolConfig
 });
 export type ToolConfigType = z.infer<typeof ToolConfigSchema>;
@@ -36,6 +41,7 @@ export const DEFAULT_TOOL_CONFIG = {
   wikipedia: DEFAULT_WIKIPEDIA_TOOL_CONFIG,
   openapi: DEFAULT_OPENAPI_TOOL_CONFIG,
   interpreter: DEFAULT_E2B_INTERPRETER_TOOL_CONFIG,
+  image_generator: DEFAULT_IMAGE_GENERATOR_TOOL_CONFIG,
   requirementsCompliance: DEFAULT_REQUIREMENTS_COMPLIANCE_TOOL_CONFIG,
 };
 
