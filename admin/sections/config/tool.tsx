@@ -19,10 +19,44 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { ImageGeneratorConfig } from "./tools/image_generator";
 import { E2BInterpreterConfig } from "./tools/interpreter";
 import { OpenAPIConfig } from "./tools/openapi";
+import { QdrantClient } from "@qdrant/js-client-rest";
+
+const checkCollectionExists = async (collectionName: string) => {
+  const client = new QdrantClient({ host: "localhost", port: 6333 });
+
+  try {
+    const collectionsResponse = await client.getCollections();
+    return collectionsResponse.collections.some(
+      (collection) => collection.name === collectionName
+    );
+  } catch (error) {
+    console.error(`Error checking collection '${collectionName}':`, error);
+    throw error;
+  }
+};
+
+const checkRequirementsComplianceAndCollections = async () => {
+  try {
+    const collectionsExist = await Promise.all([
+      checkCollectionExists("requirement"),
+      checkCollectionExists("description"),
+    ]);
+    return {
+      requirementCollectionExists: collectionsExist[0],
+      descriptionCollectionExists: collectionsExist[1],
+    };
+  } catch (error) {
+    console.error(
+      "Error checking Requirements Compliance tool and collections:",
+      error
+    );
+    throw error;
+  }
+};
 
 export const ToolConfig = () => {
   const form = useForm<ToolConfigType>({
@@ -31,6 +65,37 @@ export const ToolConfig = () => {
   });
 
   const onSubmit = async (tool_name: string, data: any) => {
+    if (tool_name === "requirementsCompliance" && data.enabled) {
+      try {
+        const complianceResults = await checkRequirementsComplianceAndCollections();
+
+        if (
+          complianceResults &&
+          (!complianceResults.requirementCollectionExists ||
+            !complianceResults.descriptionCollectionExists)
+        ) {
+          data.enabled = false;
+          form.reset(data)
+          toast({
+            title: "Compliance Error",
+            description:
+              "The requirement and description collections must exist and be populated before using the Requirement Compliance agent.",
+            className: "text-red-500",
+          });
+        }
+      } catch (error) {
+        data.enabled = false;
+        form.reset(data)
+        console.error("Compliance check failed:", error);
+        toast({
+          title: "Error",
+          description:
+            "An error occurred while performing the compliance check.",
+          className: "text-red-500",
+        });
+      }
+    }
+
     await updateToolConfig(tool_name, data).catch((error) => {
       toast({
         title: `Could not update ${tool_name} config`,
@@ -65,12 +130,15 @@ export const ToolConfig = () => {
                   <FormControl>
                     <Checkbox
                       checked={field.value.enabled ?? false}
-                      onCheckedChange={(checked) => {
+                      onCheckedChange={async (checked) => {
                         field.onChange({
                           ...field.value,
                           enabled: checked,
                         });
-                        onSubmit("requirementsCompliance", form.getValues().requirementsCompliance);
+                        await onSubmit(
+                          "requirementsCompliance",
+                          form.getValues().requirementsCompliance
+                        );
                       }}
                     />
                   </FormControl>
@@ -79,7 +147,10 @@ export const ToolConfig = () => {
                       {field.value.label}
                     </FormLabel>
                     <FormMessage />
-                    <FormDescription>Use this agent after populating Requirements and Description source to generate a compliance report</FormDescription>
+                    <FormDescription>
+                      Use this agent after populating Requirements and
+                      Description source to generate a compliance report
+                    </FormDescription>
                   </div>
                 </FormItem>
               )}
@@ -95,12 +166,15 @@ export const ToolConfig = () => {
                   <FormControl>
                     <Checkbox
                       checked={field.value.enabled ?? false}
-                      onCheckedChange={(checked) => {
+                      onCheckedChange={async (checked) => {
                         field.onChange({
                           ...field.value,
                           enabled: checked,
                         });
-                        onSubmit("duckduckgo", form.getValues().duckduckgo);
+                        await onSubmit(
+                          "duckduckgo",
+                          form.getValues().duckduckgo
+                        );
                       }}
                     />
                   </FormControl>
@@ -109,7 +183,9 @@ export const ToolConfig = () => {
                       {field.value.label}
                     </FormLabel>
                     <FormMessage />
-                    <FormDescription>{field.value.description}</FormDescription>
+                    <FormDescription>
+                      {field.value.description}
+                    </FormDescription>
                   </div>
                 </FormItem>
               )}
@@ -125,12 +201,15 @@ export const ToolConfig = () => {
                   <FormControl>
                     <Checkbox
                       checked={field.value.enabled ?? false}
-                      onCheckedChange={(checked) => {
+                      onCheckedChange={async (checked) => {
                         field.onChange({
                           ...field.value,
                           enabled: checked,
                         });
-                        onSubmit("wikipedia", form.getValues().wikipedia);
+                        await onSubmit(
+                          "wikipedia",
+                          form.getValues().wikipedia
+                        );
                       }}
                     />
                   </FormControl>
@@ -139,7 +218,9 @@ export const ToolConfig = () => {
                       {field.value.label}
                     </FormLabel>
                     <FormMessage />
-                    <FormDescription>{field.value.description}</FormDescription>
+                    <FormDescription>
+                      {field.value.description}
+                    </FormDescription>
                   </div>
                 </FormItem>
               )}
