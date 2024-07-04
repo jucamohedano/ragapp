@@ -11,28 +11,24 @@ from llama_index.core.query_engine import CustomQueryEngine
 from llama_index.llms.ollama import Ollama
 from llama_index.core import PromptTemplate
 
-def insert_event_record(qdrant_client, collection_name, event_text, index, url=None):
-    event_uuid = str(uuid.uuid4())
-    timestamp = int(time.time())
-    # event_text = event_text_template.format(index=index+1)
-    
-    qdrant_client.upsert(
-        collection_name=collection_name,
-        points=[
-            models.PointStruct(
-                id=index,
-                payload={
-                    "UUID": event_uuid,
-                    "Request ID": str(uuid.uuid4()),
-                    "Event Text": event_text,
-                    "Timestamp": timestamp,
-                    "fileUrl": url,
-                },
-                vector=[0.9, 0.1, 0.1, 0.1],
-            ),
-        ]
-    )
+from typing import List
+from pydantic import BaseModel
 
+from llama_index.core.schema import NodeWithScore, QueryBundle
+from llama_index.core.callbacks.schema import CBEventType, EventPayload
+from llama_index.core.base.response.schema import RESPONSE_TYPE
+from typing import Any, List, Optional, Sequence
+
+
+import llama_index.core.instrumentation as instrument
+dispatcher = instrument.get_dispatcher(__name__)
+
+class ComplianceOutput(BaseModel):
+    """Data model for a Compliance Check output."""
+
+    result: str
+    reason: str
+    extra_info: str = None
 
 class ComplianceQueryEngine(CustomQueryEngine):
     """Compliance Check Query Engine."""
@@ -43,9 +39,31 @@ class ComplianceQueryEngine(CustomQueryEngine):
     qa_prompt: PromptTemplate
 
 
+    def _insert_event_record(self, qdrant_client, collection_name, event_text, index, url=None):
+        event_uuid = str(uuid.uuid4())
+        timestamp = int(time.time())
+        # event_text = event_text_template.format(index=index+1)
+        
+        qdrant_client.upsert(
+            collection_name=collection_name,
+            points=[
+                models.PointStruct(
+                    id=index,
+                    payload={
+                        "UUID": event_uuid,
+                        "Request ID": str(uuid.uuid4()),
+                        "Event Text": event_text,
+                        "Timestamp": timestamp,
+                        "fileUrl": url,
+                    },
+                    vector=[0.9, 0.1, 0.1, 0.1],
+                ),
+            ]
+        )
+
+
     def custom_query(self, query_str: str):
         event_handler = EventCallbackHandler()
-        print('QDRANT_URL: ', os.getenv('QDRANT_URL'))
         qdrant_client = QdrantClient(url=os.getenv('QDRANT_URL'))
 
         # Check if the "events" collection exists and delete it if it does
@@ -107,7 +125,7 @@ class ComplianceQueryEngine(CustomQueryEngine):
             for index, req_record in enumerate(req_records):
                 req_event_text = f"Retrieving Context for Requirement {index+1}..."
                 print(req_event_text)
-                insert_event_record(qdrant_client, "events", req_event_text, index*3)
+                self._insert_event_record(qdrant_client, "events", req_event_text, index*3)
                 time.sleep(1)
                 
                 match = find_top_match(req_record.vector)
@@ -129,65 +147,40 @@ class ComplianceQueryEngine(CustomQueryEngine):
                     event_handler.emit(ExtendedCBEventType.REASONING_START, {"reasoning_start":"started reasoning over req and desc"})
                     reasoning_event_text = f"Reasoning with Context for Requirement {index+1}..."
                     print(reasoning_event_text)
-                    insert_event_record(qdrant_client, "events", reasoning_event_text, (index*3)+1)
+                    self._insert_event_record(qdrant_client, "events", reasoning_event_text, (index*3)+1)
                     
                     response = self.llm.complete(
                                 self.qa_prompt.format(
                                     requirement_text=result_row['Requirement Text'], 
                                     description_text=result_row['Description Text']),
-                                # formatted=True
                             )
-                    
 
                     responses.append(response)
 
                     try:
-                        response_json = json.loads(response.json())
-                    except json.JSONDecodeError:
-                        response_json = {}
+                        response_json = json.loads(response.text)
 
-                        time.slee(1.0)
-                    try:
-                        response_text = response_json.get('text', '{}')
-                        response_json = json.loads(response_text)
+                        # Extract nested or direct values for Result and Reason
+                        def extract_value(data, key):
+                            if isinstance(data.get(key), dict):
+                                return data.get(key, {}).get(key, "N/A")
+                            return data.get(key, "N/A")
 
-                        # Handle both cases: when Result and Reason are nested or simple key-value pairs
-                        if isinstance(response_json.get("Result"), dict):
-                            result = response_json.get("Result", {}).get("Result", "N/A")
-                            print("result is nested: ", result)
-                        else:
-                            result = response_json.get("Result", "N/A")
-
-                        if isinstance(response_json.get("Reason"), dict):
-                            reason = response_json.get("Reason", {}).get("Reason", "N/A")
-                            print("reason is nested: ", result)
-                        else:
-                            reason = response_json.get("Reason", "N/A")
+                        result = extract_value(response_json, "Result")
+                        reason = extract_value(response_json, "Reason")
 
                         time.sleep(1.0)
 
                     except (TypeError, json.JSONDecodeError) as e:
                         qdrant_client.delete_collection(collection_name="events")
                         print(f"Error parsing JSON response: {e}")
-                        print()
-                        print(100*"&")
-                        print(response_json)
-                        print(100*"&")
-                        print()
+                        print(100 * "&")
+                        print(response)
+                        print(100 * "&")
                         return "Report to the user that there was an error in the JSON structure produced by the LLM to generate the compliance report."
-                    try:
-                        response_json = json.loads(response.json())
 
+                    event_handler.emit(ExtendedCBEventType.REASONING_END, {"reasoning_end": "finished reasoning over req and desc"})
 
-                    except (TypeError, ValueError, json.JSONDecodeError) as e:
-                        qdrant_client.delete_collection(collection_name="events")
-                        print(f"Error parsing JSON response: {e}")
-                        print(100*"&")
-                        print(response_json)
-                        print(100*"&")
-                        return "Report to the user that there was an error in the JSON structure produced by the LLM to generate the compliance report."
-                    
-                    event_handler.emit(ExtendedCBEventType.REASONING_END, {"reasoning_end":"finished reasoning over req and desc"})
 
                     llm_results.append(result)
                     llm_reasons.append(reason)
@@ -195,7 +188,7 @@ class ComplianceQueryEngine(CustomQueryEngine):
                     # Update the DataFrame
                     persist_event_text = f"Persisting result to spreadsheet..."
                     print(persist_event_text)
-                    insert_event_record(qdrant_client, "events", persist_event_text, (index*3)+2)
+                    self._insert_event_record(qdrant_client, "events", persist_event_text, (index*3)+2)
                     time.sleep(1.0)
                     last_index = (index*3)+2
 
@@ -228,12 +221,15 @@ class ComplianceQueryEngine(CustomQueryEngine):
             'Result',
             'Reason'
         ])
-        insert_event_record(qdrant_client=qdrant_client, 
+
+        self._insert_event_record(qdrant_client=qdrant_client, 
                             collection_name="events", 
                             event_text="Results-LLM.xlsx", 
                             index=last_index+1,
                             url='/api/chat/download')
+        time.sleep(5.0)
         return f"Report to the user that requirements compliance report is ready and nothing else."
+
     
 def get_compliance_tool():
     from llama_index.core.tools.query_engine import QueryEngineTool
@@ -268,9 +264,24 @@ def get_compliance_tool():
         # return_direct=True
     )
 
-    # schema = compliance_check_tool.metadata.get_parameters_dict()
-    # print('\nSchema:\n')
-    # print(schema)
-    # print('\n')
-
     return compliance_check_tool
+
+
+def get_compliance_engine():
+    from llama_index.core import get_response_synthesizer
+    from llama_index.core.settings import Settings
+
+    qa_prompt = PromptTemplate(
+        "I need you to carefully identify commonalities and differences between a pair of statements.\n"
+        "The first statement is the Requirement. The second statement is the Capability.\n "
+        "You need to deduce whether the Capability can fulfill the Requirement, producing a Result.\n"
+        "Your Result choices are: Yes, No, Partial. You should also generate a Reason for why you picked your choice.\n"
+        "Requirement: {requirement_text}\n"
+        "Capability: {description_text}\n"
+        "Respond in JSON of the form:\n\n"
+        '{{\n  "Result": {{\n    "Result": "Yes"\n  }},\n  "Reason": {{\n    "Reason": "n77 bands are supported by this capability."\n  }}\n}}'
+    )
+    
+    compliance_query_engine = ComplianceQueryEngine(llm=Settings.llm, 
+                                                    qa_prompt=qa_prompt)
+    return compliance_query_engine

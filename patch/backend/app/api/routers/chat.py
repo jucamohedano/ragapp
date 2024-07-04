@@ -8,6 +8,7 @@ from llama_index.core.chat_engine.types import BaseChatEngine
 from llama_index.core.llms import MessageRole
 from app.engine import get_chat_engine
 from app.api.routers.vercel_response import VercelStreamResponse
+from llama_index.core.base.response.schema import RESPONSE_TYPE, Response
 from app.api.routers.events import EventCallbackHandler
 from app.api.routers.models import (
     ChatData,
@@ -18,6 +19,7 @@ from app.api.routers.models import (
 )
 from fastapi.responses import FileResponse
 from pathlib import Path
+from app.engine.tools import ToolFactory 
 
 chat_router = r = APIRouter()
 
@@ -39,11 +41,25 @@ async def chat(
 
         last_message_content = data.get_last_message_content()
         messages = data.get_history_messages()
+
+        tools = ToolFactory.from_env()
+        for tool in tools:
+            if tool.metadata.name == 'compliance_check':
+                from app.engine.tools.requirementsCompliance import get_compliance_engine
+                compliance_engine = get_compliance_engine()
+                response = compliance_engine.query("run compliance check")
+                # return response
+                return Result(
+                    result=Message(role=MessageRole.ASSISTANT, content=response.response),
+                    nodes=SourceNodes.from_source_nodes(response.source_nodes),
+                )
+
         chat_engine.callback_manager.handlers.append(event_handler)  # type: ignore
 
         async def content_generator():
             async def _chat_response_generator():
                 response = await chat_engine.astream_chat(last_message_content, messages)
+
                 async for token in response.async_response_gen():
                     yield VercelStreamResponse.convert_text(token)
                 event_handler.is_done = True

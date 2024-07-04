@@ -32,13 +32,17 @@ def reset_index():
         from app.engine.vectordbs.qdrant import get_vector_store
 
         store = get_vector_store()
-        store.client.delete_collection(
-            store.collection_name,
-        )
-        store._create_collection(
-            collection_name=store.collection_name,
-            vector_size=int(os.getenv("EMBEDDING_DIM", 1536)),
-        )
+        collections = store.client.get_collections()
+
+        for collection in collections:
+            logger.info(f"Removing collection {store.collection_name}")        
+            store.client.delete_collection(
+                collection,
+            )
+            store._create_collection(
+                collection_name=store.collection_name,
+                vector_size=int(os.getenv("VECTOR_SIZE", 1536)),
+            )
 
     vector_store_provider = os.getenv("VECTOR_STORE_PROVIDER", "chroma")
     if vector_store_provider == "chroma":
@@ -55,4 +59,14 @@ def reset_index():
         shutil.rmtree(storage_context_dir)
 
     # Run the indexing
-    index_all()
+    if vector_store_provider == "qdrant":
+        from app.engine.vectordbs.qdrant import get_vector_store
+
+        store = get_vector_store()
+
+        collections = store.client.get_collections()
+
+        for collection in collections:
+            index_all(collection_path=f"data/{collection}")
+    else:
+        index_all()

@@ -9,12 +9,12 @@ import {
 import { EventData } from "../index";
 
 
+  type ChatEventsProps = {
+    data: EventData[];
+    isLoading: boolean;
+    onValueChange?: (value: any) => void; // Make onValueChange optional
+  };
 
-type ChatEventsProps = {
-  data: EventData[];
-  isLoading: boolean;
-  onValueChange?: (value: any) => void; // Make onValueChange optional
-};
   export function ChatEvents({
     data,
     isLoading,
@@ -38,6 +38,14 @@ type ChatEventsProps = {
       setIsOpen(true);
     }
   }, [data, fileDownloaded]);
+
+  useEffect(() => {
+    // Keep the collapsible open if any event's isCollapsed is true
+    const anyIsCollapsed = data.some(eventItem => eventItem.isCollapsed);
+    if (!anyIsCollapsed){
+      setIsOpen(true);
+    }
+  }, [data]);
 
   const handleDownloadClick = () => {
     setFileDownloaded(true);
