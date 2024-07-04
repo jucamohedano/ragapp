@@ -10,7 +10,7 @@ def get_vector_store():
     try:
         module = importlib.import_module(f"app.engine.vectordbs.{provider}")
         logger.info(f"Using vector provider: {provider}")
-        collection_name = os.environ['QDRANT_COLLECTION']
+        collection_name = os.environ['QDRANT_COLLECTION'] if os.environ['QDRANT_COLLECTION'] else "default"
         return module.get_vector_store(collection_name)
     except ImportError:
         raise ValueError(f"Unsupported vector provider: {provider}")
