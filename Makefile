@@ -44,8 +44,6 @@ build-admin:
 
 build-frontends: build-chat build-admin
 
-build-admin: build-admin
-
 run:
 	poetry run python main.py
 
